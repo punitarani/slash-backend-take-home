@@ -1,5 +1,18 @@
 # Slash backend take home
 
+## Punit's Notes
+
+- Add redis db to store the transactions and account balances
+  - Is it the best? No, but for the scope of this exercise, it should be fine.
+  - In a prod env, we would use a sql db to store the transactions and account balances
+  - Redis however should allow horizontal scaling as multiple replicas can access the same data
+- Add a `/status` endpoint to the API to check the health of the service
+  - This is primarily used for debugging and ensuring redis connection is alive
+- Added helper db functions to handle queries to the redis db
+- Updated existing endpoints to use the new db functions
+
+---
+
 We're looking for strong backend engineers who are capable of building performant and fault-tolerant systems that scale. We want engineers who can think and ship quickly, and are focused on getting things done. If you are looking for more product-focused or frontend roles, check out our other challenges:
 
 - [Slash frontend take home](https://github.com/kevinbai0/slash-frontend-take-home)
