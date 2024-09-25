@@ -1,4 +1,5 @@
 import express from "express";
+import { Redis } from "ioredis";
 
 const app = express();
 app.use(express.json());
@@ -11,33 +12,83 @@ interface Transaction {
 	timestamp: string;
 }
 
-interface AccountBalance {
-	accountId: string;
-	balance: number;
+// interface AccountBalance {
+// 	accountId: string;
+// 	balance: number;
+// }
+
+// const transactions: {
+// 	[Key in string]: Transaction[];
+// } = {};
+
+// Create a Redis client
+const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379");
+
+// Get the balance for an account from Redis
+async function getBalance(accountId: string): Promise<number> {
+	// balance:accountId -> $balance
+	const balance = await redis.get(`balance:${accountId}`);
+	return balance ? Number.parseFloat(balance) : 0;
 }
 
-const transactions: {
-	[Key in string]: Transaction[];
-} = {};
+// Set the balance for an account in Redis
+async function setBalance(accountId: string, amount: number): Promise<void> {
+	// balance:accountId -> $balance
+	await redis.set(`balance:${accountId}`, amount.toString());
+}
 
-app.post("/transaction", (req, res) => {
+// Add a new transaction for an account in Redis
+async function addTransaction(
+	accountId: string,
+	transaction: Transaction,
+): Promise<void> {
+	// transactions:accountId:transactionId -> $transaction
+	await redis.set(
+		`transactions:${accountId}:${transaction.id}`,
+		JSON.stringify(transaction),
+	);
+}
+
+// Get the transactions for an account from Redis
+async function getTransactions(accountId: string): Promise<Transaction[]> {
+	// transactions:accountId:* -> $transactions
+	const transactions = await redis.keys(`transactions:${accountId}:*`);
+	return transactions.map((transaction) => JSON.parse(transaction));
+}
+
+// GET /status
+app.get("/status", async (req, res) => {
+	try {
+		// Ping Redis to check the connection
+		await redis.ping();
+		res.status(200).json({ status: "ok", redis: "connected" });
+	} catch (error) {
+		console.error("Redis connection error:", error);
+		res
+			.status(500)
+			.json({ status: "error", message: "Redis connection failed" });
+	}
+});
+
+// POST /transaction
+app.post("/transaction", async (req, res) => {
 	const transaction: Transaction = req.body;
 
 	switch (transaction.type) {
 		case "deposit":
-			transactions[transaction.accountId] =
-				transactions[transaction.accountId] || [];
-			transactions[transaction.accountId].push(transaction);
+			// Wrap in {} to prevent scope issues
+			{
+				const balance = await getBalance(transaction.accountId);
+				const newBalance = balance + transaction.amount;
+				await setBalance(transaction.accountId, newBalance);
+				await addTransaction(transaction.accountId, transaction);
+			}
 			res.status(200).end();
 			break;
 
 		case "withdraw_request": {
-			const total =
-				transactions[transaction.accountId]?.reduce(
-					(acc, curr) => acc + curr.amount,
-					0,
-				) || 0;
-			if (total >= transaction.amount) {
+			const balance = await getBalance(transaction.accountId);
+			if (balance >= transaction.amount) {
 				res.status(201).end();
 			} else {
 				res.status(402).end();
@@ -45,10 +96,16 @@ app.post("/transaction", (req, res) => {
 			break;
 		}
 		case "withdraw": {
-			transactions[transaction.accountId] =
-				transactions[transaction.accountId] || [];
-			transactions[transaction.accountId].push(transaction);
-			res.status(200).end();
+			// To prevent race conditions, check the balance again before the transaction
+			const balance = await getBalance(transaction.accountId);
+			if (balance >= transaction.amount) {
+				const newBalance = balance - transaction.amount;
+				await setBalance(transaction.accountId, newBalance);
+				await addTransaction(transaction.accountId, transaction);
+				res.status(200).end();
+			} else {
+				res.status(402).end();
+			}
 			break;
 		}
 		default:
@@ -58,14 +115,10 @@ app.post("/transaction", (req, res) => {
 	}
 });
 
-app.get("/account/:accountId", (req, res) => {
+// GET /account/:accountId
+app.get("/account/:accountId", async (req, res) => {
 	const { accountId } = req.params;
-	const balance =
-		transactions[accountId]?.reduce(
-			(acc, curr) =>
-				curr.type === "deposit" ? acc + curr.amount : acc - curr.amount,
-			0,
-		) || 0;
+	const balance = await getBalance(accountId);
 	res.status(200).json({ accountId, balance });
 });
 
