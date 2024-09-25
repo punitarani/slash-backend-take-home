@@ -14,12 +14,14 @@
 	"license": "ISC",
 	"devDependencies": {
 		"@types/express": "^4.17.21",
+		"@types/node": "^22.7.1",
 		"express": "^4.21.0",
 		"ts-node": "^10.9.2",
 		"tsx": "^4.19.1",
 		"typescript": "^5.6.2"
 	},
 	"dependencies": {
+		"ioredis": "^5.4.1",
 		"tinypool": "^1.0.1"
 	}
 }
