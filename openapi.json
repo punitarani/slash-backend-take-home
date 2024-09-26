@@ -1,0 +1,252 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "FastAPI",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/transaction": {
+      "post": {
+        "summary": "Create Transaction",
+        "description": "Process a transaction\n\nArgs:\n    transaction (schemas.Transaction): The transaction details.\n    db (Session): The database session.\n\nReturns:\n    dict: A message indicating the transaction status.\n\nRaises:\n    HTTPException: If the account is not found or there are issues with the withdrawal.",
+        "operationId": "create_transaction_transaction_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Transaction",
+                "allow_population_by_field_name": true
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/account/{accountId}": {
+      "get": {
+        "summary": "Get Account Balance",
+        "description": "Get account balance\n\nArgs:\n    accountId (str): The ID of the account.\n    db (Session): The database session.\n\nReturns:\n    schemas.AccountBalance: The account ID and current balance.\n\nRaises:\n    HTTPException: If the account is not found.",
+        "operationId": "get_account_balance_account__accountId__get",
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Accountid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountBalance"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/debug/accounts": {
+      "get": {
+        "summary": "List Accounts",
+        "description": "USED FOR DEBUGGING AND TESTING.\nRetrieve a list of all accounts and their balances.\n\nArgs:\n    db (Session): The database session.\n\nReturns:\n    list[schemas.Account]: A list of accounts with their IDs and balances.",
+        "operationId": "list_accounts_debug_accounts_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AccountBalance"
+                  },
+                  "type": "array",
+                  "title": "Response List Accounts Debug Accounts Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/debug/transactions": {
+      "get": {
+        "summary": "List Transactions",
+        "description": "USED FOR DEBUGGING AND TESTING.\nRetrieve a list of all transactions.\n\nArgs:\n    db (Session): The database session.\n\nReturns:\n    list[schemas.Transaction]: A list of all transactions.",
+        "operationId": "list_transactions_debug_transactions_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Transaction"
+                  },
+                  "type": "array",
+                  "title": "Response List Transactions Debug Transactions Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/status": {
+      "get": {
+        "summary": "Get Status",
+        "description": "Check the status of the API, worker, PostgreSQL, and RabbitMQ.\n\nReturns:\n    dict: Status of each component.",
+        "operationId": "get_status_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AccountBalance": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "balance": {
+            "type": "string",
+            "title": "Balance"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "balance"
+        ],
+        "title": "AccountBalance"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Transaction": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "amount": {
+            "type": "number",
+            "title": "Amount"
+          },
+          "accountId": {
+            "type": "string",
+            "title": "Accountid"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "amount",
+          "accountId",
+          "timestamp"
+        ],
+        "title": "Transaction"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}
