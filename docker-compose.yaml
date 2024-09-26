@@ -9,26 +9,64 @@ services:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - app
+    networks:
+      - app_network
 
   app:
     build:
       context: .
       dockerfile: Dockerfile
+    environment:
+      - PORT=3000
+      - DATABASE_URL=postgresql://user:password@db:5432/postgres
+      - RABBITMQ_HOST=rabbitmq
+    depends_on:
+      - db
+      - rabbitmq
+    networks:
+      - app_network
     deploy:
       replicas: 3
-    environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - REDIS_URL=redis://redis:6379
-    depends_on:
-      - redis
+    restart: always
 
-  redis:
-    image: redis:alpine
-    ports:
-      - "6379:6379"
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: [ "python", "-u", "worker.py" ]
+    environment:
+      - PORT=3000
+      - DATABASE_URL=postgresql://user:password@db:5432/postgres
+      - RABBITMQ_HOST=rabbitmq
+    depends_on:
+      - db
+      - rabbitmq
+    networks:
+      - app_network
+    restart: always
+
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: postgres
     volumes:
-      - redis_data:/data
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - app_network
 
 volumes:
-  redis_data:
+  db_data:
+
+networks:
+  app_network:
+    driver: bridge
