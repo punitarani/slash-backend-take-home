@@ -2,15 +2,7 @@
 
 from enum import Enum
 
-from sqlalchemy import (
-    DECIMAL,
-    TIMESTAMP,
-    CheckConstraint,
-    Column,
-    ForeignKey,
-    String,
-    func,
-)
+from sqlalchemy import DECIMAL, TIMESTAMP, Column, ForeignKey, String, func
 from sqlalchemy.orm import relationship
 
 from db import Base
@@ -26,10 +18,6 @@ class Account(Base):
     __tablename__ = "accounts"
     id = Column(String, primary_key=True)
     balance = Column(DECIMAL(10, 2), nullable=False, default=0)
-
-    __table_args__ = (
-        CheckConstraint("balance >= 0", name="check_balance_non_negative"),
-    )
 
     transactions = relationship(
         "Transaction", back_populates="account", cascade="all, delete-orphan"

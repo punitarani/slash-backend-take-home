@@ -4,7 +4,7 @@
 CREATE TABLE accounts
 (
     id      TEXT PRIMARY KEY,
-    balance DECIMAL(10, 2) NOT NULL CHECK (balance >= 0)
+    balance DECIMAL(10, 2) NOT NULL
 );
 
 -- Transaction Table to log all transactions
