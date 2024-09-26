@@ -8,7 +8,7 @@ import os
 import time
 import uuid
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pika
 from fastapi import Body, Depends, FastAPI, HTTPException
@@ -23,10 +23,9 @@ from db import Base, engine, get_db
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "localhost")
 RABBITMQ_QUEUE = "transactions_queue"
 
-# Establish connection to RabbitMQ
-connection = pika.BlockingConnection(pika.ConnectionParameters(host=RABBITMQ_HOST))
-channel = connection.channel()
-channel.queue_declare(queue=RABBITMQ_QUEUE, durable=True)
+# Global variables for RabbitMQ connection and channel
+rabbitmq_connection = None
+rabbitmq_channel = None
 
 
 @asynccontextmanager
@@ -38,6 +37,7 @@ async def lifespan(app: FastAPI):
     global rabbitmq_connection
     global rabbitmq_channel
 
+    # Establish connection to RabbitMQ
     parameters = pika.ConnectionParameters(
         host=RABBITMQ_HOST, heartbeat=600, blocked_connection_timeout=300
     )
@@ -86,12 +86,12 @@ async def create_transaction(
     # Verify account existence
     account = (
         db.query(models.Account)
-        .filter(models.Account.id == transaction.account_id)
+        .filter(models.Account.id == transaction.accountId)
         .first()
     )
     if not account:
         # If account doesn't exist, create it with zero balance
-        account = models.Account(id=transaction.account_id, balance=0)
+        account = models.Account(id=transaction.accountId, balance=0)
         db.add(account)
         db.commit()
         db.refresh(account)
@@ -118,8 +118,8 @@ async def create_transaction(
                 id=str(uuid.uuid4()),
                 type="withdraw",
                 amount=transaction.amount,
-                account_id=transaction.account_id,
-                timestamp=datetime.utcnow(),
+                accountId=transaction.accountId,
+                timestamp=datetime.now(timezone.utc),
             )
             message = withdraw_transaction.model_dump()
             message["timestamp"] = message[
@@ -137,34 +137,34 @@ async def create_transaction(
                     status_code=402, detail="Withdraw_request timed out"
                 )
             return {"detail": "withdraw_request approved"}, 201
-        else:
-            # Reject the request
-            raise HTTPException(status_code=402, detail="Insufficient funds")
 
-    else:
-        # For other transactions, check for valid type and enqueue them
-        if transaction.type not in ["deposit", "withdraw"]:
-            raise HTTPException(status_code=400, detail="Invalid transaction type")
-        message = transaction.model_dump()
-        message["timestamp"] = message[
-            "timestamp"
-        ].isoformat()  # Convert datetime to string
-        rabbitmq_channel.basic_publish(
-            exchange="",
-            routing_key=RABBITMQ_QUEUE,
-            body=json.dumps(message),
-            properties=pika.BasicProperties(delivery_mode=2),
-        )
-        return {"detail": "Transaction received"}, 200
+        # Reject the request
+        raise HTTPException(status_code=402, detail="Insufficient funds")
+
+    # For other transactions, check for valid type and enqueue them
+    if transaction.type not in ["deposit", "withdraw"]:
+        raise HTTPException(status_code=400, detail="Invalid transaction type")
+
+    message = transaction.model_dump()
+    message["timestamp"] = message[
+        "timestamp"
+    ].isoformat()  # Convert datetime to string
+    rabbitmq_channel.basic_publish(
+        exchange="",
+        routing_key=RABBITMQ_QUEUE,
+        body=json.dumps(message),
+        properties=pika.BasicProperties(delivery_mode=2),
+    )
+    return {"detail": "Transaction received"}, 200
 
 
-@app.get("/account/{account_id}", response_model=schemas.AccountBalance)
-async def get_account_balance(account_id: str, db: Session = Depends(get_db)):
+@app.get("/account/{accountId}", response_model=schemas.AccountBalance)
+async def get_account_balance(accountId: str, db: Session = Depends(get_db)):
     """
     Get account balance
 
     Args:
-        account_id (str): The ID of the account.
+        accountId (str): The ID of the account.
         db (Session): The database session.
 
     Returns:
@@ -173,7 +173,7 @@ async def get_account_balance(account_id: str, db: Session = Depends(get_db)):
     Raises:
         HTTPException: If the account is not found.
     """
-    account = db.query(models.Account).filter(models.Account.id == account_id).first()
+    account = db.query(models.Account).filter(models.Account.id == accountId).first()
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
 
@@ -217,7 +217,7 @@ async def list_transactions(db: Session = Depends(get_db)):
             id=transaction.id,
             type=transaction.type,
             amount=float(transaction.amount),
-            account_id=transaction.account_id,
+            accountId=transaction.accountId,
             timestamp=transaction.timestamp,
         )
         for transaction in transactions

@@ -27,7 +27,7 @@ class Account(Base):
 class Transaction(Base):
     __tablename__ = "transactions"
     id = Column(String, primary_key=True)
-    account_id = Column(
+    accountId = Column(
         String, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False
     )
     type = Column(String, nullable=False)

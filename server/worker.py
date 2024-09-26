@@ -6,6 +6,7 @@ RabbitMQ worker process for handling transactions.
 import json
 import os
 from datetime import datetime
+from decimal import Decimal
 
 import pika
 from sqlalchemy.exc import SQLAlchemyError
@@ -34,9 +35,10 @@ def process_transaction(ch, method, properties, body):
         try:
             message = json.loads(body)
             transaction_id = message["id"]
+            print(f"Processing transaction: {transaction_id}")
             transaction_type = message["type"]
-            account_id = message["accountId"]
-            amount = float(message["amount"])
+            accountId = message["accountId"]
+            amount = Decimal(message["amount"])
             timestamp = datetime.fromisoformat(message["timestamp"])
 
             # Check if transaction already exists
@@ -53,13 +55,13 @@ def process_transaction(ch, method, properties, body):
             # Fetch account and perform transaction
             account = (
                 db.query(models.Account)
-                .filter(models.Account.id == account_id)
+                .filter(models.Account.id == accountId)
                 .with_for_update()
                 .first()
             )
             if not account:
                 # Account does not exist, create it
-                account = models.Account(id=account_id, balance=0)
+                account = models.Account(id=accountId, balance=0)
                 db.add(account)
                 db.flush()
 
@@ -76,7 +78,7 @@ def process_transaction(ch, method, properties, body):
             # Save transaction record
             new_transaction = models.Transaction(
                 id=transaction_id,
-                accountId=account_id,
+                accountId=accountId,
                 type=transaction_type,
                 amount=amount,
                 timestamp=timestamp,
@@ -102,6 +104,7 @@ def consume_transactions():
     """
     Start consuming transactions from the RabbitMQ queue.
     """
+    print("Worker started, waiting for messages...")
     channel.basic_qos(prefetch_count=1)
     channel.basic_consume(queue=RABBITMQ_QUEUE, on_message_callback=process_transaction)
     channel.start_consuming()

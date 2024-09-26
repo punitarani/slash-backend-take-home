@@ -18,7 +18,7 @@ class Transaction(BaseModel):
     id: str
     type: str
     amount: float
-    account_id: str = Field(..., alias="accountId")
+    accountId: str
     timestamp: datetime
 
     class Config:

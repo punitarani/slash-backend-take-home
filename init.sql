@@ -11,7 +11,7 @@ CREATE TABLE accounts
 CREATE TABLE transactions
 (
     id         TEXT PRIMARY KEY,
-    account_id TEXT REFERENCES accounts (id) ON DELETE CASCADE,
+    accountId TEXT REFERENCES accounts (id) ON DELETE CASCADE,
     type       TEXT           NOT NULL,
     amount     DECIMAL(10, 2) NOT NULL,
     timestamp  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -23,8 +23,8 @@ OR REPLACE FUNCTION ensure_account_exists()
 RETURNS TRIGGER AS $$
 BEGIN
     IF
-NOT EXISTS (SELECT 1 FROM accounts WHERE id = NEW.account_id) THEN
-        INSERT INTO accounts (id, balance) VALUES (NEW.account_id, 0);
+NOT EXISTS (SELECT 1 FROM accounts WHERE id = NEW.accountId) THEN
+        INSERT INTO accounts (id, balance) VALUES (NEW.accountId, 0);
 END IF;
 
 RETURN NEW;
