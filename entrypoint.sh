@@ -11,4 +11,4 @@ while ! nc -z $RABBITMQ_HOST $RABBITMQ_PORT; do
 done
 echo "RabbitMQ is up!"
 
-exec uvicorn api:app --host 0.0.0.0 --port "${PORT:-3000}"
+exec "$@"

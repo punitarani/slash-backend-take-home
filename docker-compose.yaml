@@ -28,12 +28,14 @@ services:
     deploy:
       replicas: 3
     restart: always
+    command: ["sh", "-c", "exec uvicorn api:app --host 0.0.0.0 --port ${PORT:-3000}"]
 
   worker:
     build:
       context: .
       dockerfile: Dockerfile
-    command: [ "python", "-u", "worker.py" ]
+    entrypoint: ["/app/entrypoint.sh"]
+    command: ["python", "-u", "worker.py"]
     environment:
       - PORT=3000
       - DATABASE_URL=postgresql://user:password@db:5432/postgres
